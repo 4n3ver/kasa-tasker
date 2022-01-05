@@ -2,10 +2,10 @@
   "name": "kasa-tasker",
   "version": "0.0.1",
   "description": "",
-  "main": "build/kasa-tasker.js",
+  "main": "build/index.js",
   "scripts": {
     "prestart": "npm run build",
-    "start": "node build/kasa-tasker.js",
+    "start": "node build",
     "build": "npx tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
