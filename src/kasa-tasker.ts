@@ -80,7 +80,7 @@ class Kasa {
             await this.login();
         }
 
-        const resp = await fetch(`https://wap.tplinkcloud.com?token=${this.#token}`, {
+        const resp = await fetch(`https://wap.tplinkcloud.com?token=${this.#token!}`, {
             method: "POST",
             body: JSON.stringify({
                 method: "getDeviceList"
