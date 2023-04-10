@@ -21,8 +21,21 @@ function isOkSetRelayResult(body: unknown): body is OkResult<PassthroughResponse
     if (isOkResult(body) && !!(body.result as PassthroughResponse).responseData) {
         const response = JSON.parse(
             (body.result as PassthroughResponse).responseData
-        ) as PassthroughResponseData<SetRelayStateResult>;
-        return response?.system?.set_relay_state?.err_code === 0;
+        ) as SetRelayStateResult;
+        const responseData = response?.system;
+        return responseData?.set_relay_state?.err_code === 0;
+    } else {
+        return false;
+    }
+}
+
+function isOkTransitionLightResult(body: unknown): body is OkResult<PassthroughResponse> {
+    if (isOkResult(body) && !!(body.result as PassthroughResponse).responseData) {
+        const response = JSON.parse(
+            (body.result as PassthroughResponse).responseData
+        ) as TransitionLightStateResult;
+        const responseData = response && response["smartlife.iot.smartbulb.lightingservice"];
+        return responseData?.transition_light_state?.err_code === 0;
     } else {
         return false;
     }
@@ -97,15 +110,21 @@ class Kasa {
     }
 
     async turnOn(deviceAlias: string) {
-        await this.setRelayState(await this.findDevice(deviceAlias), DeviceState.ON);
+        await this.setDeviceState(deviceAlias, DeviceState.ON);
     }
 
     async turnOff(deviceAlias: string) {
-        await this.setRelayState(await this.findDevice(deviceAlias), DeviceState.OFF);
+        await this.setDeviceState(deviceAlias, DeviceState.OFF);
     }
 
     async setDeviceState(deviceAlias: string, state: DeviceState) {
-        await this.setRelayState(await this.findDevice(deviceAlias), state);
+        const device = await this.findDevice(deviceAlias);
+        switch (device.deviceType) {
+            case "IOT.SMARTBULB":
+                return await this.transitionLightState(device, state);
+            case "IOT.SMARTPLUGSWITCH":
+                return await this.setRelayState(device, state);
+        }
     }
 
     private async findDevice(deviceAlias: string): Promise<Device> {
@@ -162,6 +181,51 @@ class Kasa {
         const body = await resp.json() as unknown;
 
         if (isOkSetRelayResult(body)) {
+            return;
+        }
+
+        throw new Error(`Unexpected response ${JSON.stringify(body, null, 2)}`);
+    }
+
+    private async transitionLightState(device: Device, state: DeviceState) {
+        if (!this.#token) {
+            await this.login();
+        }
+
+        const {
+            appServerUrl,
+            deviceId
+        } = device;
+
+        const params = {
+            token: this.#token!,
+            appName: "Kasa_Android",
+            termID: "c39f7337-a17b-41a3-b5e4-0f34860a700f",
+            appVer: "1.4.4.607",
+            ospf: "Android+6.0.1",
+            netType: "wifi",
+            locale: "en_US HTTP/1.1"
+        };
+
+        const resp = await fetch(`${appServerUrl}?${buildQueries(params)}`, {
+            method: "POST",
+            body: JSON.stringify({
+                method: "passthrough",
+                params: {
+                    deviceId,
+                    requestData: JSON.stringify({
+                        "smartlife.iot.smartbulb.lightingservice": {
+                            "transition_light_state": {
+                                "on_off": state === DeviceState.ON
+                            }
+                        }
+                    })
+                }
+            })
+        });
+        const body = await resp.json() as unknown;
+
+        if (isOkTransitionLightResult(body)) {
             return;
         }
 

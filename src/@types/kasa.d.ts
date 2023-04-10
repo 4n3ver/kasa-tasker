@@ -1,5 +1,7 @@
+type DeviceType = "IOT.SMARTBULB" | "IOT.SMARTPLUGSWITCH";
+
 interface Device {
-    deviceType: string;
+    deviceType: DeviceType;
     deviceId: string;
     alias: string;
     appServerUrl: string;
@@ -22,12 +24,25 @@ interface PassthroughResult {
     err_code: number;
 }
 
-interface SetRelayStateResult {
-    set_relay_state: PassthroughResult;
+interface LightState {
+    brightness: number;
+    hue: number;
+    saturation: number;
+    color_temp: number;
+    on_off: 0 | 1;
+    mode: "normal"
 }
 
-interface PassthroughResponseData<T> {
-    system: T;
+interface SetRelayStateResult {
+    system: {
+        set_relay_state: PassthroughResult;
+    };
+}
+
+interface TransitionLightStateResult {
+    "smartlife.iot.smartbulb.lightingservice": {
+        transition_light_state: LightState & PassthroughResult
+    };
 }
 
 interface PassthroughResponse {
